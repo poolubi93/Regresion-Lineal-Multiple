@@ -1,0 +1,255 @@
+---
+title: "Trabajo Final"
+author: "Paúl Ubillús"
+date: "2 de agosto de 2015"
+output: pdf_document
+---
+
+### Introducción
+En el presente documento detallaremos cada uno de los pasos ejecutados para generar un modelo de regresión lineal múltiple. Además, tomaremos en cuenta las conclusiones y resultados obtenidos en el trabajo.
+### Descripción información 
+
+Iniciamos cargando el archivo que contiene las varibles a utilizar, el paquete _readxl_ permite
+leer archivos desde excel sin la necesidad de instalar complementos.
+
+```{r,echo=TRUE,eval=TRUE}
+options(warn=-1)
+library(readxl)
+datarls1 <- read_excel("poblacion1.xlsx",sheet = 1,col_names = TRUE,na = "")
+datarls2 <- read_excel("poblacion2.xlsx",sheet = 1,col_names = TRUE,na = "")
+str(datarls1)
+str(datarls2)
+```
+Analizando la información disponemos en la primera data de `r nrow(datarls1)` observaciones de `r ncol(datarls1)` variables y en la segunda data de `r nrow(datarls2)` observaciones de `r ncol(datarls2)` variables.
+
+Luego procedemos a unir los archivos leidos en un mismo objeto.
+```{r,echo=TRUE,eval=TRUE}
+options(warn=-1)
+poblacion <- merge(x = datarls1 ,y = datarls2) 
+str(poblacion)
+```
+Ahora disponemos en la primera data de `r nrow(poblacion)` observaciones de `r ncol(poblacion)` variables.
+
+Procedemos a crear un codigo que identifique la clase de cada variable y genere diagrama de cajas para variables continuas y diagrama de barras para variables discretas.
+```{r,echo=T,eval=T}
+options(warn=-1)
+for(i in 1:(ncol(poblacion))){
+  if(is.numeric(poblacion[i])==T){
+    hist(poblacion[,i])
+  }else{
+    barplot(table(poblacion[,i]))
+  }
+}
+```
+
+Creemos un codigo que calcule automaticamente el mínimo, media, máximo, desviación estándar, primer cuartil de cada variable numérica y frecuencia en el caso de variables categoricas.
+```{r,echo=T,eval=T}
+options(warn=-1)
+for(i in 1:(ncol(poblacion))) {
+  if(is.numeric(poblacion[i])==T){
+    print(names(poblacion[i]))
+    print(summary(poblacion)[4,i])
+    print(summary(poblacion)[4,i])
+    print(summary(poblacion)[6,i])
+    print(sd(poblacion[,i]))
+    print(summary(poblacion)[2,i])
+    print("*******")
+  } else {
+    print(names(poblacion[i]))
+    print(summary(poblacion)[4,i])
+    print(summary(poblacion)[4,i])
+    print(summary(poblacion)[6,i])
+    print(sd(poblacion[,i]))
+    print(summary(poblacion)[1,i])
+    print("********")
+  }
+}
+```
+Consideremos la variable categórica "serv.bas.compl" con una confiabilidad del 90% ¿Puede asumirse que la media de la variable "poblacion" en el grupo "serv.bas.compl:SI" es distinta a la media del grupo "serv.bas.compl:NO" ?
+Primero veamos si podemos asumir que las varianzas de los grupos que se van a tomar son iguales o no. Procedemos a realizar un diagrama de cajas:
+```{r,echo=T,eval=T}
+options(warn=-1)
+names(poblacion)
+var1<-poblacion[,1]
+var2<-poblacion[,10]
+boxplot(var1~var2)
+```
+
+Gracias al diagrama de cajas podemos ver que en el grupo de "SI" existe más variación que en el grupo de "NO". Además, comparando las varianzas de los 2 grupos tenemos:
+```{r,echo=T,eval=T}
+options(warn=-1)
+var(var1[var2=="SI"])
+var(var1[var2=="NO"])
+```
+
+Claramente vemos que las varianzas son distintas. Ahora procedemos a aceptar o rechazar nuestra prueba de hipotesis de las medias. Procedamos a comprobar la hipotesis si las medias son iguales. Así:
+```{r,echo=T,eval=T}
+options(warn=-1)
+t.test(var1[var2=="SI"], var1[var2=="NO"],conf.level = 0.90)
+```
+Como $t=`r t.test(var1[var2=="SI"], var1[var2=="NO"],conf.level = 0.90)[1]`$ es menor que $df=`r t.test(var1[var2=="SI"], var1[var2=="NO"],conf.level = 0.90)[2]`$ se acepta 
+$H_0: u1-u2=0$.
+
+Generemos el modelo de regresión lineal múltiple que mejor se ajuste a nuestros datos.
+```{r,echo=T,eval=T}
+options(warn=-1)
+var2<-poblacion[,2]
+var7<-poblacion[,7]
+mod1<-lm(var1~var2+var7)
+summary(mod1)
+plot(mod1)
+```
+
+Gracias a los gráficos podemos ver que nuestro modelo lineal múltiple siguen normalidad. 
+
+__Interpretación de Coeficientes__
+
+Tenemos que: $B1=`r summary(mod1)[[4]][1,1]`$, $B2=`r summary(mod1)[[4]][1,2]`$ y $B3=`r summary(mod1)[[4]][1,3]`$ son significantes. También tenemos que, $Pr1=`r summary(mod1)[[4]][1,4]`$, $Pr2=`r summary(mod1)[[4]][2,4]`$ y $Pr3=`r summary(mod1)[[4]][3,4]`$ los cuales son valores muy pequeños con respecto a $t1=`r summary(mod1)[[4]][1,3]`$, $t2=`r summary(mod1)[[4]][2,3]`$ y $t3=`r summary(mod1)[[4]][3,3]`$ respectivamente  y por tanto podemos decir que nuestros coeficientes son significativos.
+
+__Interpretación de R^2__
+
+Como $R^2 = `r summary(mod1)[[8]]`$ podemos decir que aproximadamente el $`r (summary(mod1)[[8]])*100`$% de nuestra variación en nuestro problema puede ser explicado por este modelo, además el $R^2 ajustado = `r summary(mod1)[[8]]`$ por lo tanto la regresión es significativa.
+
+___**Análisis de Significancia de la Regresión**___
+
+__Gráficos de Dispersión__
+
+Carguemos la librería _library(ggplot2)_ que nos permite realizar nuestros gráficos para concluir sobre la significancion de nuestra regresión.
+```{r,echo=T,eval=T}
+options(warn=-1)
+library(ggplot2)
+```
+
+Ahora realicemos un estudio entre las diferentes variables tomadas en cuenta en nuestra regresión.
+
+__var1 vs var2__
+```{r,echo=T,eval=T}
+options(warn=-1)
+g <- ggplot(data = poblacion, aes(x=var1, y=var2))
+g + geom_point() + geom_smooth(method="lm")
+```
+
+__var1 vs var7__
+
+```{r,echo=T,eval=T}
+options(warn=-1)
+g <- ggplot(data = poblacion, aes(x=var1, y=var7))
+g + geom_point() + geom_smooth(method="lm")
+```
+
+__var2 vs var7__
+
+```{r,echo=T,eval=T}
+options(warn=-1)
+g <- ggplot(data = poblacion, aes(x=var2, y=var7))
+g + geom_point() + geom_smooth(method="lm")
+```
+
+En el caso del primer gráfico podemos distinguir una relación lineal entre las variables. En el segundo y tercer caso se tiene una mayor dispersión de puntos. 
+Tomemos en cuenta que en los 3 casos existen puntos atípicos.
+
+__Gráfico de Normalidad__
+
+__var1__
+```{r,echo=T,eval=T}
+options(warn=-1)
+qqnorm(var1)
+qqline(var1,col="blue",size=2)
+```
+
+__var2__
+```{r,echo=T,eval=T}
+options(warn=-1)
+qqnorm(var2)
+qqline(var2,col="blue",size=2)
+```
+
+__var7__
+```{r,echo=T,eval=T}
+options(warn=-1)
+qqnorm(var7)
+qqline(var7,col="blue",size=2)
+```
+
+En el tercer gráfico se puede notar claramente normalidad mietras que en los graficos 1 y 2 se viola el supuesto de normalidad.
+
+__Histogramas__
+
+__var1__
+```{r,echo=T,eval=T}
+options(warn=-1)
+hist(var1)
+```
+
+__var2__
+```{r,echo=T,eval=T}
+options(warn=-1)
+hist(var2)
+```
+  
+__var7__
+```{r,echo=T,eval=T}
+options(warn=-1)
+hist(var7)
+```
+
+Podemos ver que solo el segundo gráfico tiene tendencia a seguir una ley normal y tener simetría.
+
+___Análisis de Residuos___
+
+En primer lugar calculemos los residuos de neustra regresion lineal los cuales son: 
+```{r,echo=T,eval=T}
+options(warn=-1)
+u1<- mod1$residuals
+```
+
+Ahora estudiemos los gráficos residuales con relación a los residuos que acabamos de calcular.
+
+__var1 vs u1__
+```{r,echo=T,eval=T}
+options(warn=-1)
+g <- ggplot(data = poblacion, aes(x=var1, y=u1))
+g + geom_point() + geom_smooth(method="lm")
+```
+
+__var2 vs u1__
+```{r,echo=T,eval=T}
+options(warn=-1)
+g <- ggplot(data = poblacion, aes(x=var2, y=u1))
+g + geom_point() + geom_smooth(method="lm")
+```
+
+__var7 vs u1__
+```{r,echo=T,eval=T}
+options(warn=-1)
+g <- ggplot(data = poblacion, aes(x=var7, y=u1))
+g + geom_point() + geom_smooth(method="lm")
+```
+
+Podemos observar que no estan aleatoriamente distribuidos en una banda centrada en 0.
+Realicemos un estudio de los pronósticos de nuestro modelo lineal vs los residuos del mismo.
+
+_pronóstios vs Residuos
+```{r,echo=T,eval=T}
+options(warn=-1)
+v1 <- mod1$fitted.values
+plot(u1,v1)
+```
+
+podemos observar que los puntos estan dispersos por ser puntos atípicos e influyentes por tanto no se tiene una buena linealidad. Se debe corregir el modelo lineal. Así,
+
+__Reajustando el modelo inicial__
+```{r,echo=T,eval=T}
+options(warn=-1)
+varl1<-log(var1)
+varl2<-log(var2)
+varl7<-log(var7)
+mod2<-lm(varl1~varl2+varl7)
+summary(mod2)
+plot(mod2)
+```
+
+Luego de realizar un ajuste en el modelo original podemos observar que los valores se ajustan mas a la linealidad y aceptacion del modelo de regresión múltiple.
+
+
+
